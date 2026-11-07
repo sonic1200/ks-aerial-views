@@ -1,82 +1,84 @@
 # Aerial Views Launcher
 
-Plugin Kiosk Satellite qui utilise l'app [Aerial Views](https://github.com/theothernt/AerialViews) comme screensaver.
+A Kiosk Satellite plugin that uses the [Aerial Views](https://github.com/theothernt/AerialViews) app as the screensaver.
 
-- Quand le screensaver de Kiosk Satellite démarre, Aerial Views s'ouvre par-dessus, directement en mode screensaver.
-- Quand quelqu'un arrive, le kiosque revient au premier plan. Le retour se déclenche sur mouvement ou visage (caméra de Kiosk Satellite), présence, mot d'activation, conversation vocale, appel intercom ou un capteur Home Assistant de votre choix.
-- Toucher Aerial Views le ferme et ramène le kiosque, une fois le geste réglé dans Aerial Views (voir plus bas).
-- En option, l'écran s'éteint après un délai passé dans Aerial Views.
+- When the Kiosk Satellite screensaver starts, Aerial Views opens on top, straight into its screensaver.
+- When someone shows up, the kiosk comes back to the front. The return is triggered by motion or a face (Kiosk Satellite's camera), presence, the wake word, a voice conversation, an intercom call or a Home Assistant sensor of your choice.
+- Tapping Aerial Views closes it and brings the kiosk back, once the gesture is set in Aerial Views (see below).
+- Optionally, the screen turns off after a delay spent in Aerial Views.
 
 ## Installation
 
-Installez d'abord [Aerial Views](https://github.com/theothernt/AerialViews) sur la tablette.
+First install [Aerial Views](https://github.com/theothernt/AerialViews) on the tablet.
 
-### Bouton d'installation
+### Install button
 
 [![Install in Kiosk Satellite](https://kiosksatellite.com/img/badges/plugin-add.svg)](https://kiosksatellite.com/redirect/plugin/?repository=sonic1200/ks-aerial-views)
 
-### Manuelle
+### Manual
 
-1. Ouvrez **Paramètres > Plugin Manager** dans Kiosk Satellite et activez **Enable Plugins**.
-2. Choisissez **Add plugin**, collez `https://github.com/sonic1200/ks-aerial-views` et choisissez **Preview**.
-3. Relisez le plugin, choisissez **Trust and install**, puis activez **Aerial Views Launcher** depuis sa ligne.
+1. Open **Settings > Plugin Manager** in Kiosk Satellite and turn on **Enable Plugins**.
+2. Choose **Add plugin**, paste `https://github.com/sonic1200/ks-aerial-views` and choose **Preview**.
+3. Review the plugin, choose **Trust and install**, then enable **Aerial Views Launcher** from its entry row.
 
-## Réglages conseillés dans Kiosk Satellite
+## Recommended Kiosk Satellite settings
 
-| Réglage | Pourquoi |
+| Setting | Why |
 | --- | --- |
-| **Screensaver** activé, mode **Black** | Le screensaver de KS ne sert qu'à déclencher Aerial Views. Black évite un flash avant l'ouverture. |
-| **Caméra** : détection de mouvement et/ou de visage activée | Ce sont les sources de réveil principales. |
-| **Écoute en arrière-plan** (background listening) activée | Pendant qu'Aerial Views est affiché, Kiosk Satellite est en arrière-plan. Ce réglage garde la caméra et le mot d'activation actifs. |
-| Permission Android **« Afficher par-dessus les autres apps »** pour Kiosk Satellite | Android 10 et plus empêche une app en arrière-plan de revenir au premier plan sans cette permission. |
-| *Optionnel* : **Shizuku** avec accès accordé à Kiosk Satellite | Retour garanti même si Android bloque l'autre méthode. Le plugin l'utilise tout seul en secours (méthode **Auto**). |
-| Mode kiosque : autoriser Aerial Views | Si le mode kiosque verrouille l'écran sur KS, Android refuse d'ouvrir une autre app. |
+| **Screensaver** on, mode **Black** | The KS screensaver only triggers Aerial Views. Black avoids a flash before it opens. |
+| **Camera**: motion and/or face detection on | These are the main wake sources. |
+| **Background listening** on | While Aerial Views shows, Kiosk Satellite runs in the background. This setting keeps the camera and the wake word running. |
+| Android permission **Display over other apps** for Kiosk Satellite | Android 10 and later stop a background app from coming back to the front without it. |
+| *Optional*: **Shizuku** with access granted to Kiosk Satellite | Guaranteed return even when Android blocks the other method. The plugin falls back to it on its own (**Auto** method). |
+| Kiosk Mode: allow Aerial Views | If Kiosk Mode locks the screen to KS, Android refuses to open another app. |
 
-## Réglage indispensable dans Aerial Views
+## Required Aerial Views setting
 
-Par défaut, Aerial Views **ignore** les touchers à l'écran. Pour qu'un toucher le ferme et ramène le kiosque :
+By default, Aerial Views **ignores** taps on the screen. To make a tap close it and bring the kiosk back:
 
-**Aerial Views > D-Pad/Remote, Tap & Swipe Gestures > Screen Swipe & Tap Gestures > Single Tap** : choisissez l'action de sortie du screensaver (**Exit**), pas « Exit to settings ».
+**Aerial Views > D-Pad/Remote, Tap & Swipe Gestures > Screen Swipe & Tap Gestures > Single Tap**: choose the action that exits the screensaver (**Exit**), not "Exit to settings".
 
-Il n'est pas nécessaire d'activer « Start screensaver on launch » : le plugin ouvre directement l'activité du screensaver (`TestActivity`).
+You don't need to turn on "Start screensaver on launch": the plugin opens the screensaver activity (`TestActivity`) directly.
 
-## Réglages du plugin
+## Plugin settings
 
-| Réglage | Effet |
+The settings page is currently in French. Each setting is listed with its label as shown in the app.
+
+| Setting | Effect |
 | --- | --- |
-| Ouvrir Aerial Views avec le screensaver | Interrupteur principal. Éteint, Aerial Views ne s'ouvre que depuis l'action **Ouvrir Aerial Views**. |
-| Activité à ouvrir | Par défaut `com.neilturner.aerialviews/.ui.screensaver.TestActivity`. |
-| Revenir sur mouvement / visage / présence / mot d'activation | Sources de réveil de Kiosk Satellite. |
-| Capteur Home Assistant | Le kiosque revient quand ce capteur passe à `on`. C'est le plus fiable si la tablette coupe la caméra en arrière-plan. |
-| Ignorer les détections après l'ouverture | Délai de grâce, 5 s par défaut, pour qu'un mouvement juste au départ ne referme pas Aerial Views. |
-| Méthode de retour au kiosque | **Auto** (Android, puis Shizuku), **Android** ou **Shizuku**. |
-| Éteindre l'écran après | Après ce délai, revient au kiosque et éteint l'écran. Aerial Views revient au screensaver suivant. 0 = jamais. |
+| Open Aerial Views with the screensaver (*Ouvrir Aerial Views avec le screensaver*) | Main switch. When off, Aerial Views only opens from the **Ouvrir Aerial Views** action. |
+| Activity to open (*Activité à ouvrir*) | Defaults to `com.neilturner.aerialviews/.ui.screensaver.TestActivity`. |
+| Return on motion / face / presence / wake word (*Revenir sur...*) | Kiosk Satellite wake sources. |
+| Home Assistant sensor (*Capteur Home Assistant*) | The kiosk comes back when this sensor turns `on`. Most reliable if the tablet stops the camera in the background. |
+| Ignore detections after opening (*Ignorer les détections après l'ouverture*) | Grace period, 5 s by default, so motion right at the start doesn't close Aerial Views. |
+| Return method (*Méthode de retour au kiosque*) | **Auto** (Android, then Shizuku), **Android** or **Shizuku**. |
+| Turn the screen off after (*Éteindre l'écran après*) | After this delay, returns to the kiosk and turns the screen off. Aerial Views opens again at the next screensaver. 0 = never. |
 
-Actions disponibles pour les gestes, le tiroir du kiosque et les boutons Home Assistant : **Ouvrir Aerial Views** et **Revenir au kiosque**.
+Actions available to gestures, the kiosk drawer and Home Assistant buttons: **Ouvrir Aerial Views** (open Aerial Views) and **Revenir au kiosque** (return to the kiosk).
 
-L'état du plugin s'affiche sur sa page dans Plugin Manager : prêt, ouvert, retour et pourquoi, ou ce qui bloque.
+The plugin's state shows on its page in Plugin Manager: ready, open, returned and why, or what is blocking it.
 
-## Données et permissions
+## Data and permissions
 
-Le plugin n'envoie rien sur le réseau. Il lit l'état du screensaver, de l'écran et des détections de Kiosk Satellite (`host.read`), utilise ses commandes temporaires comme réinitialiser le délai du screensaver ou éteindre l'écran (`host.control`), et lance au besoin `am start` via Shizuku si vous l'avez configuré (`shizuku`). Le capteur Home Assistant optionnel est lu par la connexion existante de Kiosk Satellite.
+The plugin sends nothing over the network. It reads Kiosk Satellite's screensaver, screen and detection state (`host.read`), uses its transient controls such as resetting the screensaver timer or turning the screen off (`host.control`), and runs `am start` through Shizuku when you have set it up (`shizuku`). The optional Home Assistant sensor is read through Kiosk Satellite's existing connection.
 
-## Limites
+## Limitations
 
-- Le réveil par la caméra suppose que Kiosk Satellite garde la caméra en arrière-plan. C'est le cas avec l'écoute en arrière-plan sur la plupart des appareils, mais pas sur tous (certains Samsung, par exemple). Dans ce cas, utilisez un capteur Home Assistant.
-- Les alarmes de Kiosk Satellite ne sont pas visibles par les plugins : le plugin ne revient pas tout seul au kiosque quand une alarme sonne.
-- Le plugin utilise des API Android publiques en plus du SDK Kiosk Satellite (ouvrir une activité, suivre le premier plan). Il ne touche à aucune classe interne de Kiosk Satellite.
+- Camera wake requires Kiosk Satellite to keep the camera running in the background. With background listening it does on most devices, but not all (some Samsung devices, for example). On those, use a Home Assistant sensor.
+- Kiosk Satellite alarms are not visible to plugins: the plugin does not return to the kiosk on its own when an alarm rings.
+- Besides the Kiosk Satellite SDK, the plugin uses public Android APIs (opening an activity, following which app is in front). It touches no internal Kiosk Satellite class.
 
-## Compiler
+## Building
 
-JDK 17+ et un SDK Android avec `platforms;android-35` et `build-tools` :
+JDK 17+ and an Android SDK with `platforms;android-35` and `build-tools`:
 
 ```sh
 python3 tools/test.py
 python3 tools/build.py --android-platform 35
 ```
 
-Le ZIP est créé dans `dist/`.
+The ZIP is created in `dist/`.
 
-## Avertissement
+## Disclaimer
 
-Ce plugin n'est affilié ni à Aerial Views ni à Kiosk Satellite. Il ouvre simplement l'app Aerial Views installée sur l'appareil.
+This plugin is not affiliated with Aerial Views or Kiosk Satellite. It only opens the Aerial Views app installed on the device.
