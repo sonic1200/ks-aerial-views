@@ -6,6 +6,7 @@ A Kiosk Satellite plugin that uses the [Aerial Views](https://github.com/theothe
 - When someone shows up, the kiosk comes back to the front. The return is triggered by motion or a face (Kiosk Satellite's camera), presence, the wake word, a voice conversation, an intercom call or a Home Assistant sensor of your choice.
 - Tapping Aerial Views closes it and brings the kiosk back, once the gesture is set in Aerial Views (see below).
 - Optionally, the screen turns off after a delay spent in Aerial Views.
+- Night hours: between two times you choose, such as 23:00 and 07:00, Aerial Views stays closed, the screen turns off at the start and back on at the end.
 
 ## Installation
 
@@ -28,6 +29,7 @@ First install [Aerial Views](https://github.com/theothernt/AerialViews) on the t
 | **Screensaver** on, mode **Black** | The KS screensaver only triggers Aerial Views. Black avoids a flash before it opens. |
 | **Camera**: motion and/or face detection on | These are the main wake sources. |
 | **Background listening** on | While Aerial Views shows, Kiosk Satellite runs in the background. This setting keeps the camera and the wake word running. |
+| **Device admin** permission for Kiosk Satellite | Needed to really turn the screen off, for night hours and **Turn the screen off after**. |
 | Android permission **Display over other apps** for Kiosk Satellite | Android 10 and later stop a background app from coming back to the front without it. |
 | *Optional*: **Shizuku** with access granted to Kiosk Satellite | Guaranteed return even when Android blocks the other method. The plugin falls back to it on its own (**Auto** method). |
 | Kiosk Mode: allow Aerial Views | If Kiosk Mode locks the screen to KS, Android refuses to open another app. |
@@ -51,6 +53,12 @@ You don't need to turn on "Start screensaver on launch": the plugin opens the sc
 | Ignore detections after opening | Grace period, 5 s by default, so motion right at the start doesn't close Aerial Views. |
 | Return method | **Auto** (Android, then Shizuku), **Android** or **Shizuku**. |
 | Turn the screen off after | After this delay, returns to the kiosk and turns the screen off. Aerial Views opens again at the next screensaver. 0 = never. |
+| Night hours | Turns on the night window below. During it, Aerial Views never opens. |
+| Night starts at / Night ends at | The window, on the hour, in the tablet's time zone. It may cross midnight, such as 23:00 to 07:00. |
+| Turn the screen off when night starts | Closes Aerial Views if it is open and turns the screen off. |
+| Turn the screen on when night ends | Wakes the screen. If the screensaver shows, Aerial Views opens again. |
+
+At night a wake (motion, a tap...) still turns the screen on and shows the dashboard. When the kiosk goes idle again, its own screensaver shows instead of Aerial Views. To have it turn the screen off again, add a Kiosk Satellite screensaver schedule entry at the night start time with **Turn screen off after** on.
 
 Actions available to gestures, the kiosk drawer and Home Assistant buttons: **Open Aerial Views** and **Return to the kiosk**.
 

@@ -161,6 +161,9 @@ public final class AerialViewsPluginTest {
         new AerialViewsPluginTest().launchErrorIsReported();
         new AerialViewsPluginTest().silentLaunchFailureUsesShizuku();
         new AerialViewsPluginTest().wakeSourcesFollowSettings();
+        new AerialViewsPluginTest().nightHoursSleepAndWake();
+        new AerialViewsPluginTest().nightHoursWithoutScreenControl();
+        nightMath();
         System.out.println("AerialViewsPluginTest: all tests passed");
     }
 
@@ -296,6 +299,63 @@ public final class AerialViewsPluginTest {
         clock.advance(AerialViewsPlugin.LAUNCH_CHECK_MS);
         check(other.shizukuCommands.size() == 1, "retries with Shizuku");
         check(Arrays.asList(other.shizukuCommands.get(0)).contains(AerialViewsPlugin.DEFAULT_COMPONENT), "am start Aerial Views");
+    }
+
+    static final long HOUR = 3_600_000L;
+
+    void startAt(long time, Map<String, Object> settings) throws Exception {
+        clock.time = time;
+        plugin.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        start(settings);
+    }
+
+    void nightHoursSleepAndWake() throws Exception {
+        startAt(22 * HOUR, settings("nightEnabled", true, "nightStart", "23:00", "nightEnd", "07:00",
+            "nightScreenOff", true, "nightScreenOn", true));
+        check(host.status.contains("Night hours: 23:00 to 07:00"), "shows the night hours: " + host.status);
+        screensaver();
+        check(android.launches == 1, "opens Aerial Views in the evening");
+        clock.advance(HOUR + 1000);
+        check(android.returns == 1, "brings the kiosk back when night starts");
+        clock.advance(AerialViewsPlugin.RETURN_CHECK_MS);
+        check(host.commands.contains("screenOff"), "turns the screen off at night");
+        check(host.status.startsWith("Night: screen turned off"), "reports the night: " + host.status);
+        host.screensaverActive = true;
+        plugin.onEvent("ks.screen.state", payload("on", true, "source", "app"));
+        screensaver();
+        check(android.launches == 1, "Aerial Views stays closed at night, even after a wake");
+        check(host.status.startsWith("Night: Aerial Views stays closed until 07:00"), host.status);
+        host.commands.clear();
+        clock.advance(8 * HOUR);
+        check(host.commands.contains("screenOn"), "turns the screen on in the morning");
+        check(android.launches == 2, "opens Aerial Views again since the screensaver shows");
+        host.commands.clear();
+        android.resume();
+        clock.advance(16 * HOUR);
+        check(host.commands.contains("screenOff"), "the next night is scheduled too");
+    }
+
+    void nightHoursWithoutScreenControl() throws Exception {
+        startAt(10 * HOUR, settings("nightEnabled", true, "nightStart", "13:00", "nightEnd", "14:00",
+            "nightScreenOff", false, "nightScreenOn", false));
+        clock.advance(3 * HOUR + 1000);
+        check(!host.commands.contains("screenOff"), "leaves the screen alone when asked");
+        screensaver();
+        check(android.launches == 0, "but still keeps Aerial Views closed");
+        clock.advance(HOUR);
+        check(!host.commands.contains("screenOn"), "no screen on either");
+        screensaver();
+        check(android.launches == 1, "opens again after the night");
+    }
+
+    static void nightMath() {
+        check(AerialViewsPlugin.inNight(23 * 60, 23 * 60, 7 * 60), "23:00 is night");
+        check(AerialViewsPlugin.inNight(3 * 60, 23 * 60, 7 * 60), "03:00 is night");
+        check(!AerialViewsPlugin.inNight(7 * 60, 23 * 60, 7 * 60), "07:00 is day");
+        check(!AerialViewsPlugin.inNight(12 * 60, 23 * 60, 7 * 60), "noon is day");
+        check(AerialViewsPlugin.inNight(13 * 60, 13 * 60, 14 * 60), "same-day window");
+        check(!AerialViewsPlugin.inNight(5 * 60, 5 * 60, 5 * 60), "empty window");
+        check(AerialViewsPlugin.minutes("07:30", 0) == 450 && AerialViewsPlugin.minutes("bad", 42) == 42, "parses times");
     }
 
     void wakeSourcesFollowSettings() throws Exception {

@@ -2,10 +2,12 @@
 package aerial.launcher;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import me.jxl.kiosk.plugins.KioskPlugin;
 import me.jxl.kiosk.plugins.PluginHost;
 
@@ -51,12 +53,20 @@ public final class AerialViewsPlugin implements KioskPlugin {
     private long graceMs = 5000;
     private String returnMethod = "Auto";
     private long maxMs;
+    private boolean nightEnabled;
+    private int nightStart = 23 * 60;
+    private int nightEnd = 7 * 60;
+    private boolean nightScreenOff = true;
+    private boolean nightScreenOn = true;
+    private TimeZone zone = TimeZone.getDefault();
 
     // Runtime state, scheduler thread only.
     private boolean away;
     private long awaySince;
     private long lastWake = Long.MIN_VALUE / 2;
     private boolean suppressUntilScreenOn;
+    private boolean wasNight;
+    private Scheduler.Task nightTimer;
     private String subscribedEntity = "";
     private String lastEntityState;
     private Scheduler.Task maxTimer;
@@ -165,6 +175,110 @@ public final class AerialViewsPlugin implements KioskPlugin {
         maxMs = Math.round(number(settings, "maxMinutes", 0) * 60_000);
         if (away) scheduleMaxTimer();
         followEntity(string(settings, "wakeEntity", "").trim());
+        nightEnabled = bool(settings, "nightEnabled", false);
+        nightStart = minutes(string(settings, "nightStart", "23:00"), 23 * 60);
+        nightEnd = minutes(string(settings, "nightEnd", "07:00"), 7 * 60);
+        nightScreenOff = bool(settings, "nightScreenOff", true);
+        nightScreenOn = bool(settings, "nightScreenOn", true);
+        // A settings change never turns the screen off or on by itself. Only crossing a boundary does.
+        wasNight = isNight();
+        scheduleNightTimer();
+    }
+
+    /** For tests. */
+    void setTimeZone(TimeZone zone) {
+        this.zone = zone;
+    }
+
+    static int minutes(String time, int fallback) {
+        try {
+            String[] parts = time.trim().split(":");
+            int hours = Integer.parseInt(parts[0]);
+            int mins = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+            if (hours < 0 || hours > 23 || mins < 0 || mins > 59) return fallback;
+            return hours * 60 + mins;
+        } catch (RuntimeException invalid) {
+            return fallback;
+        }
+    }
+
+    static boolean inNight(int minuteOfDay, int start, int end) {
+        if (start == end) return false;
+        return start < end ? minuteOfDay >= start && minuteOfDay < end : minuteOfDay >= start || minuteOfDay < end;
+    }
+
+    private Calendar calendar(long time) {
+        Calendar calendar = Calendar.getInstance(zone);
+        calendar.setTimeInMillis(time);
+        return calendar;
+    }
+
+    private boolean isNight() {
+        if (!nightEnabled) return false;
+        Calendar now = calendar(scheduler.now());
+        return inNight(now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE), nightStart, nightEnd);
+    }
+
+    /** Milliseconds until the next occurrence of a minute of the day, in the kiosk's time zone. */
+    private long untilMinute(int minuteOfDay) {
+        long now = scheduler.now();
+        Calendar next = calendar(now);
+        next.set(Calendar.HOUR_OF_DAY, minuteOfDay / 60);
+        next.set(Calendar.MINUTE, minuteOfDay % 60);
+        next.set(Calendar.SECOND, 0);
+        next.set(Calendar.MILLISECOND, 0);
+        if (next.getTimeInMillis() <= now) next.add(Calendar.DAY_OF_MONTH, 1);
+        return next.getTimeInMillis() - now;
+    }
+
+    private void scheduleNightTimer() {
+        cancel(nightTimer);
+        nightTimer = null;
+        if (!nightEnabled || nightStart == nightEnd) return;
+        long delay = Math.min(untilMinute(nightStart), untilMinute(nightEnd));
+        // A second late, so the boundary minute has started even if the clock is slightly off.
+        nightTimer = scheduler.later(delay + 1000, this::onNightBoundary);
+    }
+
+    private void onNightBoundary() {
+        nightTimer = null;
+        boolean night = isNight();
+        if (night && !wasNight) enterNight();
+        else if (!night && wasNight) leaveNight();
+        wasNight = night;
+        scheduleNightTimer();
+    }
+
+    private void enterNight() {
+        if (away) {
+            bringBack("night", nightScreenOff);
+            return;
+        }
+        if (nightScreenOff) {
+            suppressUntilScreenOn = true;
+            command("screenOff");
+            status("Night: screen turned off. Aerial Views stays closed until " + clock(nightEnd) + ".", false);
+        } else {
+            status("Night: Aerial Views stays closed until " + clock(nightEnd) + ".", false);
+        }
+    }
+
+    private void leaveNight() {
+        suppressUntilScreenOn = false;
+        if (nightScreenOn) command("screenOn");
+        status("Morning. " + idleStatus(), false);
+        // If the screensaver already shows, Aerial Views takes over now instead of at the next one.
+        try {
+            host.executeCommand("isScreensaverActive", Collections.emptyMap(), (ok, data, error) -> {
+                if (ok && Boolean.TRUE.equals(data)) post(this::onScreensaverStarted);
+            });
+        } catch (RuntimeException ignored) {
+            // Not fatal: the next screensaver start opens Aerial Views.
+        }
+    }
+
+    static String clock(int minuteOfDay) {
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60);
     }
 
     private void followEntity(String entity) {
@@ -246,6 +360,10 @@ public final class AerialViewsPlugin implements KioskPlugin {
     private void onScreensaverStarted() {
         if (!enabled || platform == null) return;
         if (suppressUntilScreenOn) return;
+        if (isNight()) {
+            status("Night: Aerial Views stays closed until " + clock(nightEnd) + ".", false);
+            return;
+        }
         if (away && !platform.kioskInForeground()) return;
         launch(false);
     }
@@ -414,7 +532,9 @@ public final class AerialViewsPlugin implements KioskPlugin {
         if (screenOff) {
             suppressUntilScreenOn = true;
             command("screenOff");
-            status("Screen turned off after the time limit. Aerial Views opens again at the next screensaver.", false);
+            status("night".equals(reason)
+                ? "Night: screen turned off. Aerial Views stays closed until " + clock(nightEnd) + "."
+                : "Screen turned off after the time limit. Aerial Views opens again at the next screensaver.", false);
         } else {
             status("Back to the kiosk (" + reason + ").", false);
         }
@@ -483,6 +603,9 @@ public final class AerialViewsPlugin implements KioskPlugin {
     private String idleStatus() {
         StringBuilder text = new StringBuilder(enabled ? "Ready. Aerial Views opens at the next screensaver."
             : "Paused. Aerial Views only opens from the command.");
+        if (nightEnabled && nightStart != nightEnd) {
+            text.append(" Night hours: ").append(clock(nightStart)).append(" to ").append(clock(nightEnd)).append('.');
+        }
         if (!unsupportedEvents.isEmpty()) {
             text.append(" Not supported by this Kiosk Satellite version: ")
                 .append(String.join(", ", unsupportedEvents)).append('.');

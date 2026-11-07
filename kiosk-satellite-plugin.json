@@ -3,9 +3,9 @@
   "apiVersion": 1,
   "id": "aerial-views-launcher",
   "name": "Aerial Views Launcher",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minAndroidSdk": 24,
-  "minAppVersion": "2026.10.40",
+  "minAppVersion": "2026.10.45",
   "entryClass": "aerial.launcher.AerialViewsPlugin",
   "description": "Opens the Aerial Views app as the screensaver when the Kiosk Satellite screensaver starts, then brings the kiosk back to the front on motion, a face, presence, the wake word or a Home Assistant sensor. Pick the Black screensaver in Kiosk Satellite to avoid any flash.",
   "author": "sonic1200",
@@ -65,6 +65,35 @@
       "min": 0, "max": 720, "step": 5, "unit": "min",
       "group": "Sleep",
       "description": "After this long in Aerial Views, returns to the kiosk and turns the screen off. 0 = never."
+    },
+    {
+      "key": "nightEnabled", "type": "boolean", "title": "Night hours", "default": false,
+      "group": "Night",
+      "description": "During these hours Aerial Views does not open: the kiosk sleeps instead, like Fully Kiosk's screen off schedule."
+    },
+    {
+      "key": "nightStart", "type": "select", "title": "Night starts at", "default": "23:00",
+      "options": ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"],
+      "group": "Night",
+      "visibleWhen": { "key": "nightEnabled", "equals": true }
+    },
+    {
+      "key": "nightEnd", "type": "select", "title": "Night ends at", "default": "07:00",
+      "options": ["00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"],
+      "group": "Night",
+      "visibleWhen": { "key": "nightEnabled", "equals": true }
+    },
+    {
+      "key": "nightScreenOff", "type": "boolean", "title": "Turn the screen off when night starts", "default": true,
+      "group": "Night",
+      "visibleWhen": { "key": "nightEnabled", "equals": true },
+      "description": "Closes Aerial Views if it is open and turns the screen off. Needs Kiosk Satellite to be allowed to turn the screen off (Device admin), otherwise nothing happens."
+    },
+    {
+      "key": "nightScreenOn", "type": "boolean", "title": "Turn the screen on when night ends", "default": true,
+      "group": "Night",
+      "visibleWhen": { "key": "nightEnabled", "equals": true },
+      "description": "Wakes the screen in the morning. If the screensaver shows, Aerial Views opens again."
     }
   ],
   "commands": [
