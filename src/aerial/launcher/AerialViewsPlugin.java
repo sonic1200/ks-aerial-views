@@ -101,7 +101,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
             if (platform != null) platform.setForegroundListener(() -> post(this::onKioskResumed));
             apply(copy);
             if (platform == null) {
-                status("Impossible d'accéder à Android depuis le plugin. Le plugin ne peut rien ouvrir.", true);
+                status("Cannot reach Android from the plugin. It cannot open anything.", true);
             } else {
                 status(idleStatus(), false);
             }
@@ -121,11 +121,11 @@ public final class AerialViewsPlugin implements KioskPlugin {
             post(() -> launch(true));
         } else if ("returnToKiosk".equals(command)) {
             post(() -> {
-                if (away) bringBack("commande", false);
-                else status("Le kiosque est déjà au premier plan.", false);
+                if (away) bringBack("command", false);
+                else status("The kiosk is already in front.", false);
             });
         } else {
-            throw new IllegalArgumentException("Commande inconnue : " + command);
+            throw new IllegalArgumentException("Unknown command: " + command);
         }
     }
 
@@ -184,7 +184,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
             current.subscribe("ha.entity." + entity);
             subscribedEntity = entity;
         } catch (RuntimeException failed) {
-            status("Impossible de suivre " + entity + " : " + failed.getMessage(), true);
+            status("Cannot follow " + entity + ": " + failed.getMessage(), true);
         }
     }
 
@@ -197,24 +197,24 @@ public final class AerialViewsPlugin implements KioskPlugin {
                 if (Boolean.TRUE.equals(payload.get("on"))) onScreenOn();
                 return;
             case "ks.detection.motion":
-                if (wakeMotion) wake("mouvement");
+                if (wakeMotion) wake("motion");
                 return;
             case "ks.detection.face":
-                if (wakeFace) wake("visage");
+                if (wakeFace) wake("face");
                 return;
             case "ks.detection.presence":
-                if (wakePresence && Boolean.TRUE.equals(payload.get("present"))) wake("présence");
+                if (wakePresence && Boolean.TRUE.equals(payload.get("present"))) wake("presence");
                 return;
             case "ks.detection.person":
             case "ks.detection.proximity":
-                if (wakePresence && !Boolean.TRUE.equals(payload.get("held"))) wake("présence");
+                if (wakePresence && !Boolean.TRUE.equals(payload.get("held"))) wake("presence");
                 return;
             case "ks.wakeword.detected":
-                if (wakeVoice) wake("mot d'activation");
+                if (wakeVoice) wake("wake word");
                 return;
             case "ks.voice.state":
                 Object state = payload.get("state");
-                if (wakeVoice && state != null && !"idle".equals(state)) wake("assistant vocal");
+                if (wakeVoice && state != null && !"idle".equals(state)) wake("voice assistant");
                 return;
             case "ks.intercom.state":
                 Object call = payload.get("state");
@@ -236,7 +236,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
         lastEntityState = state;
         // Only a change into an active state wakes, never the first snapshot: a sensor that stays on must not
         // close Aerial Views the moment it opens.
-        if (previous != null && !active(previous) && active(state)) wake("capteur " + subscribedEntity);
+        if (previous != null && !active(previous) && active(state)) wake("sensor " + subscribedEntity);
     }
 
     static boolean active(String state) {
@@ -278,7 +278,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
             }
             return;
         }
-        markAway(manual ? "Aerial Views ouvert depuis la commande." : "Aerial Views ouvert.");
+        markAway(manual ? "Aerial Views opened from the command." : "Aerial Views opened.");
         // Android can drop the request without an error. Check that the kiosk really went to the background.
         cancel(launchCheck);
         launchCheck = scheduler.later(LAUNCH_CHECK_MS, () -> {
@@ -286,7 +286,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
             if (platform.kioskInForeground()) {
                 leaveAway();
                 if (shizukuReady()) launchWithShizuku(run);
-                else status("Aerial Views ne s'est pas affiché. Vérifiez qu'il est installé et que le Mode kiosque autorise les autres apps.", true);
+                else status("Aerial Views did not show. Check that it is installed and that Kiosk Mode allows other apps.", true);
             }
         });
     }
@@ -294,8 +294,8 @@ public final class AerialViewsPlugin implements KioskPlugin {
     private void launchWithShizuku(int run) {
         shizuku(new String[] {"/system/bin/am", "start", "-n", component}, ok -> {
             if (run != attempt) return;
-            if (ok) markAway("Aerial Views ouvert avec Shizuku.");
-            else status("Aerial Views n'a pas pu s'ouvrir, même avec Shizuku.", true);
+            if (ok) markAway("Aerial Views opened with Shizuku.");
+            else status("Aerial Views could not open, even with Shizuku.", true);
         });
     }
 
@@ -315,7 +315,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
         long remaining = Math.max(0, awaySince + maxMs - scheduler.now());
         final int run = attempt;
         maxTimer = scheduler.later(remaining, () -> {
-            if (run == attempt && away) bringBack("délai écoulé", true);
+            if (run == attempt && away) bringBack("time limit", true);
         });
     }
 
@@ -359,13 +359,13 @@ public final class AerialViewsPlugin implements KioskPlugin {
     }
 
     private String returnBlocked(String error) {
-        StringBuilder message = new StringBuilder("Android a bloqué le retour au kiosque");
+        StringBuilder message = new StringBuilder("Android blocked the return to the kiosk");
         if (error != null) message.append(" (").append(error).append(')');
         message.append(". ");
         if (!platform.canStartFromBackground()) {
-            message.append("Accordez à Kiosk Satellite « Afficher par-dessus les autres apps » ou configurez Shizuku.");
+            message.append("Grant Kiosk Satellite Display over other apps or set up Shizuku.");
         } else {
-            message.append("Configurez Shizuku pour un retour garanti.");
+            message.append("Set up Shizuku for a guaranteed return.");
         }
         return message.toString();
     }
@@ -374,7 +374,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
         String kiosk = platform.kioskComponent();
         if (kiosk == null) {
             returnReason = null;
-            status("Activité du kiosque inconnue, retour impossible avec Shizuku.", true);
+            status("Unknown kiosk activity, cannot return with Shizuku.", true);
             return;
         }
         cancel(returnCheck);
@@ -383,7 +383,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
             if (run != attempt || !away) return;
             if (!ok) {
                 returnReason = null;
-                status("Retour au kiosque impossible avec Shizuku.", true);
+                status("Could not return to the kiosk with Shizuku.", true);
                 return;
             }
             cancel(returnCheck);
@@ -394,7 +394,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
                     onKioskResumed();
                 } else {
                     returnReason = null;
-                    status("Shizuku a lancé le kiosque mais il n'est pas revenu au premier plan.", true);
+                    status("Shizuku started the kiosk but it did not come to the front.", true);
                 }
             });
         });
@@ -407,16 +407,16 @@ public final class AerialViewsPlugin implements KioskPlugin {
         boolean screenOff = returnScreenOff;
         leaveAway();
         if (reason == null) {
-            status("Aerial Views fermé. " + idleStatus(), false);
+            status("Aerial Views closed. " + idleStatus(), false);
             return;
         }
         command("postponeScreensaver");
         if (screenOff) {
             suppressUntilScreenOn = true;
             command("screenOff");
-            status("Écran éteint après le délai. Aerial Views revient au prochain screensaver.", false);
+            status("Screen turned off after the time limit. Aerial Views opens again at the next screensaver.", false);
         } else {
-            status("Retour au kiosque (" + reason + ").", false);
+            status("Back to the kiosk (" + reason + ").", false);
         }
     }
 
@@ -460,12 +460,12 @@ public final class AerialViewsPlugin implements KioskPlugin {
                 boolean success = ok && data instanceof Map
                     && ((Map<?, ?>) data).get("exitCode") instanceof Number
                     && ((Number) ((Map<?, ?>) data).get("exitCode")).intValue() == 0;
-                if (!success) safeLog("Shizuku " + String.join(" ", command) + " : " + (ok ? data : error));
+                if (!success) safeLog("Shizuku " + String.join(" ", command) + ": " + (ok ? data : error));
                 done.run(success);
             }));
         } catch (RuntimeException | LinkageError failed) {
             shizukuBusy = false;
-            safeLog("Shizuku : " + failed);
+            safeLog("Shizuku: " + failed);
             done.run(false);
         }
     }
@@ -481,14 +481,14 @@ public final class AerialViewsPlugin implements KioskPlugin {
     }
 
     private String idleStatus() {
-        StringBuilder text = new StringBuilder(enabled ? "Prêt. Aerial Views s'ouvrira au prochain screensaver."
-            : "En pause. Aerial Views ne s'ouvre que depuis la commande.");
+        StringBuilder text = new StringBuilder(enabled ? "Ready. Aerial Views opens at the next screensaver."
+            : "Paused. Aerial Views only opens from the command.");
         if (!unsupportedEvents.isEmpty()) {
-            text.append(" Non pris en charge par cette version de Kiosk Satellite : ")
+            text.append(" Not supported by this Kiosk Satellite version: ")
                 .append(String.join(", ", unsupportedEvents)).append('.');
         }
         if (platform != null && !platform.canStartFromBackground() && !shizukuReady()) {
-            text.append(" Attention : sans « Afficher par-dessus les autres apps » ni Shizuku, Android peut bloquer le retour au kiosque.");
+            text.append(" Warning: without Display over other apps or Shizuku, Android may block the return to the kiosk.");
         }
         return text.toString();
     }

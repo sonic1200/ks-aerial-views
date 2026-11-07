@@ -181,7 +181,7 @@ public final class AerialViewsPluginTest {
         check(android.returns == 1, "brings the kiosk back on motion");
         clock.advance(AerialViewsPlugin.RETURN_CHECK_MS);
         check(host.commands.contains("postponeScreensaver"), "resets the idle timer");
-        check(host.status.contains("mouvement") && !host.statusError, "reports the return: " + host.status);
+        check(host.status.contains("motion") && !host.statusError, "reports the return: " + host.status);
         plugin.onEvent("ks.detection.motion", payload());
         check(android.returns == 1, "no return while the kiosk is in front");
         screensaver();
@@ -193,7 +193,7 @@ public final class AerialViewsPluginTest {
         screensaver();
         clock.advance(10_000);
         android.resume();
-        check(host.status.startsWith("Aerial Views fermé"), "notices the user closed it: " + host.status);
+        check(host.status.startsWith("Aerial Views closed"), "notices the user closed it: " + host.status);
         plugin.onEvent("ks.detection.face", payload());
         check(android.returns == 0, "no return needed");
     }
@@ -214,7 +214,7 @@ public final class AerialViewsPluginTest {
         check(host.shizukuCommands.size() == 1, "falls back to Shizuku");
         check(Arrays.asList(host.shizukuCommands.get(0)).contains("me.jxl.kiosk_satellite/.MainActivity"), "starts the kiosk");
         clock.advance(AerialViewsPlugin.RETURN_CHECK_MS);
-        check(host.status.contains("visage") && !host.statusError, "returned with Shizuku: " + host.status);
+        check(host.status.contains("face") && !host.statusError, "returned with Shizuku: " + host.status);
     }
 
     void blockedReturnWithoutShizukuExplains() throws Exception {
@@ -225,9 +225,9 @@ public final class AerialViewsPluginTest {
         clock.advance(10_000);
         plugin.onEvent("ks.wakeword.detected", payload());
         clock.advance(AerialViewsPlugin.RETURN_CHECK_MS);
-        check(host.statusError && host.status.contains("Afficher par-dessus"), "explains the fix: " + host.status);
+        check(host.statusError && host.status.contains("Display over other apps"), "explains the fix: " + host.status);
         android.resume();
-        check(host.status.startsWith("Aerial Views fermé"), "still notices a later manual exit: " + host.status);
+        check(host.status.startsWith("Aerial Views closed"), "still notices a later manual exit: " + host.status);
     }
 
     void homeAssistantSensorWakesOnlyOnChange() throws Exception {
@@ -270,10 +270,10 @@ public final class AerialViewsPluginTest {
     }
 
     void launchErrorIsReported() throws Exception {
-        android.launchError = "Aerial Views introuvable.";
+        android.launchError = "Aerial Views not found.";
         start(settings());
         screensaver();
-        check(host.statusError && host.status.contains("introuvable"), "reports a missing app: " + host.status);
+        check(host.statusError && host.status.contains("not found"), "reports a missing app: " + host.status);
         plugin.onEvent("ks.detection.motion", payload());
         check(android.returns == 0, "never away, so nothing to return from");
     }

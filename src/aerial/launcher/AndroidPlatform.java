@@ -86,18 +86,18 @@ final class AndroidPlatform implements Platform {
 
     @Override public String launch(String component) {
         ComponentName name = ComponentName.unflattenFromString(component.trim());
-        if (name == null) return "Activité invalide : " + component;
+        if (name == null) return "Invalid activity: " + component;
         Intent intent = new Intent(Intent.ACTION_MAIN).setComponent(name)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         try {
             app.startActivity(intent);
             return null;
         } catch (ActivityNotFoundException missing) {
-            return "Aerial Views introuvable. Installez-le ou vérifiez l'activité (" + component + ").";
+            return "Aerial Views not found. Install it or check the activity (" + component + ").";
         } catch (SecurityException denied) {
-            return "Android refuse d'ouvrir " + component + " : " + denied.getMessage();
+            return "Android refuses to open " + component + ": " + denied.getMessage();
         } catch (RuntimeException failed) {
-            return "Ouverture impossible : " + failed;
+            return "Cannot open: " + failed;
         }
     }
 
@@ -112,12 +112,12 @@ final class AndroidPlatform implements Platform {
             }
         }
         Intent intent = kioskIntent();
-        if (intent == null) return "Activité du kiosque inconnue";
+        if (intent == null) return "Unknown kiosk activity";
         try {
             app.startActivity(intent);
             return null;
         } catch (RuntimeException failed) {
-            return "Retour au kiosque impossible : " + failed;
+            return "Cannot return to the kiosk: " + failed;
         }
     }
 

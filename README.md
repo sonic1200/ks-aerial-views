@@ -42,19 +42,17 @@ You don't need to turn on "Start screensaver on launch": the plugin opens the sc
 
 ## Plugin settings
 
-The settings page is currently in French. Each setting is listed with its label as shown in the app.
-
 | Setting | Effect |
 | --- | --- |
-| Open Aerial Views with the screensaver (*Ouvrir Aerial Views avec le screensaver*) | Main switch. When off, Aerial Views only opens from the **Ouvrir Aerial Views** action. |
-| Activity to open (*Activité à ouvrir*) | Defaults to `com.neilturner.aerialviews/.ui.screensaver.TestActivity`. |
-| Return on motion / face / presence / wake word (*Revenir sur...*) | Kiosk Satellite wake sources. |
-| Home Assistant sensor (*Capteur Home Assistant*) | The kiosk comes back when this sensor turns `on`. Most reliable if the tablet stops the camera in the background. |
-| Ignore detections after opening (*Ignorer les détections après l'ouverture*) | Grace period, 5 s by default, so motion right at the start doesn't close Aerial Views. |
-| Return method (*Méthode de retour au kiosque*) | **Auto** (Android, then Shizuku), **Android** or **Shizuku**. |
-| Turn the screen off after (*Éteindre l'écran après*) | After this delay, returns to the kiosk and turns the screen off. Aerial Views opens again at the next screensaver. 0 = never. |
+| Open Aerial Views with the screensaver | Main switch. When off, Aerial Views only opens from the **Open Aerial Views** action. |
+| Activity to open | Defaults to `com.neilturner.aerialviews/.ui.screensaver.TestActivity`. |
+| Return on motion / a face / presence or proximity / the wake word or a call | Kiosk Satellite wake sources. |
+| Home Assistant sensor | The kiosk comes back when this sensor turns `on`. Most reliable if the tablet stops the camera in the background. |
+| Ignore detections after opening | Grace period, 5 s by default, so motion right at the start doesn't close Aerial Views. |
+| Return method | **Auto** (Android, then Shizuku), **Android** or **Shizuku**. |
+| Turn the screen off after | After this delay, returns to the kiosk and turns the screen off. Aerial Views opens again at the next screensaver. 0 = never. |
 
-Actions available to gestures, the kiosk drawer and Home Assistant buttons: **Ouvrir Aerial Views** (open Aerial Views) and **Revenir au kiosque** (return to the kiosk).
+Actions available to gestures, the kiosk drawer and Home Assistant buttons: **Open Aerial Views** and **Return to the kiosk**.
 
 The plugin's state shows on its page in Plugin Manager: ready, open, returned and why, or what is blocking it.
 
