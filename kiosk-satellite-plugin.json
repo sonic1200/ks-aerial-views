@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "apiVersion": 1,
+  "id": "aerial-views-launcher",
+  "name": "Aerial Views Launcher",
+  "version": "1.0.0",
+  "minAndroidSdk": 24,
+  "minAppVersion": "2026.10.40",
+  "entryClass": "aerial.launcher.AerialViewsPlugin",
+  "description": "Ouvre l'app Aerial Views comme screensaver quand celui de Kiosk Satellite démarre, puis ramène le kiosque au premier plan sur mouvement, visage, présence, mot d'activation ou capteur Home Assistant. Choisissez le screensaver Black dans Kiosk Satellite pour éviter tout flash.",
+  "author": "sonic1200",
+  "license": "Apache-2.0",
+  "icon": "icon.png",
+  "capabilities": ["host.read", "host.control", "shizuku"],
+  "settings": [
+    {
+      "key": "enabled", "type": "boolean", "title": "Ouvrir Aerial Views avec le screensaver", "default": true,
+      "group": "Aerial Views",
+      "description": "Quand le screensaver de Kiosk Satellite démarre, Aerial Views s'ouvre par-dessus."
+    },
+    {
+      "key": "component", "type": "string", "title": "Activité à ouvrir",
+      "default": "com.neilturner.aerialviews/.ui.screensaver.TestActivity",
+      "group": "Aerial Views",
+      "description": "Format paquet/activité. La valeur par défaut ouvre directement le screensaver d'Aerial Views."
+    },
+    {
+      "key": "wakeMotion", "type": "boolean", "title": "Revenir sur mouvement", "default": true,
+      "group": "Réveil",
+      "description": "Utilise la détection de mouvement de Kiosk Satellite (Paramètres > Caméra). Elle doit continuer en arrière-plan : activez l'écoute en arrière-plan."
+    },
+    {
+      "key": "wakeFace", "type": "boolean", "title": "Revenir sur visage", "default": true,
+      "group": "Réveil"
+    },
+    {
+      "key": "wakePresence", "type": "boolean", "title": "Revenir sur présence ou proximité", "default": false,
+      "group": "Réveil",
+      "description": "Capteur de présence de l'appareil, détection de personne et capteur de proximité."
+    },
+    {
+      "key": "wakeVoice", "type": "boolean", "title": "Revenir sur mot d'activation ou appel", "default": true,
+      "group": "Réveil",
+      "description": "Mot d'activation, conversation vocale ou appel intercom entrant."
+    },
+    {
+      "key": "wakeEntity", "type": "entity", "title": "Capteur Home Assistant (optionnel)", "default": "",
+      "group": "Réveil",
+      "description": "Le kiosque revient quand ce capteur passe à on (mouvement, occupation, porte...). Fonctionne même si la caméra est coupée en arrière-plan."
+    },
+    {
+      "key": "graceSeconds", "type": "number", "title": "Ignorer les détections après l'ouverture", "default": 5,
+      "min": 0, "max": 60, "step": 1, "unit": "s",
+      "group": "Réveil",
+      "description": "Évite qu'un mouvement juste au départ referme aussitôt Aerial Views."
+    },
+    {
+      "key": "returnMethod", "type": "select", "title": "Méthode de retour au kiosque", "default": "Auto",
+      "options": ["Auto", "Android", "Shizuku"],
+      "group": "Réveil",
+      "description": "Auto essaie Android, puis Shizuku si le kiosque n'est pas revenu. Android 10+ exige la permission « Afficher par-dessus les autres apps » pour Kiosk Satellite, sinon il faut Shizuku."
+    },
+    {
+      "key": "maxMinutes", "type": "number", "title": "Éteindre l'écran après", "default": 0,
+      "min": 0, "max": 720, "step": 5, "unit": "min",
+      "group": "Veille",
+      "description": "Après ce délai dans Aerial Views, revient au kiosque et éteint l'écran. 0 = jamais."
+    }
+  ],
+  "commands": [
+    { "id": "launchNow", "title": "Ouvrir Aerial Views" },
+    { "id": "returnToKiosk", "title": "Revenir au kiosque" }
+  ]
+}
