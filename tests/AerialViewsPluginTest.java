@@ -92,10 +92,33 @@ public final class AerialViewsPluginTest {
             subscriptions.add(event);
         }
         @Override public void unsubscribe(String event) { subscriptions.remove(event); }
+        String deviceName = "LENOVO Lenovo TB-8705F";
+        final Map<String, String> haStates = new HashMap<>();
+        final List<String> haCalls = new ArrayList<>();
+
         @Override public void executeCommand(String command, Map<String, Object> arguments, CommandCallback callback) {
             commands.add(command);
-            if ("isScreensaverActive".equals(command)) callback.onResult(true, screensaverActive, null);
-            else callback.onResult(true, null, null);
+            if ("isScreensaverActive".equals(command)) {
+                callback.onResult(true, screensaverActive, null);
+            } else if ("getDeviceInfo".equals(command)) {
+                callback.onResult(true, Collections.singletonMap("name", deviceName), null);
+            } else if ("getHaEntityState".equals(command)) {
+                String id = (String) arguments.get("entityId");
+                Map<String, Object> snapshot = new HashMap<>();
+                snapshot.put("entityId", id);
+                snapshot.put("status", haStates.containsKey(id) ? "available" : "missing");
+                snapshot.put("state", haStates.get(id));
+                callback.onResult(true, snapshot, null);
+            } else {
+                callback.onResult(true, null, null);
+            }
+        }
+        @Override public void haCall(Map<String, Object> message, CommandCallback callback) {
+            String id = (String) ((Map<?, ?>) message.get("target")).get("entity_id");
+            String service = (String) message.get("service");
+            haCalls.add(service + " " + id);
+            haStates.put(id, "turn_on".equals(service) ? "on" : "off");
+            callback.onResult(true, Collections.emptyMap(), null);
         }
         @Override public Map<String, Object> shizukuState() {
             return Collections.singletonMap("granted", shizukuGranted);
@@ -164,6 +187,9 @@ public final class AerialViewsPluginTest {
         new AerialViewsPluginTest().nightHoursSleepAndWake();
         new AerialViewsPluginTest().nightHoursWithoutScreenControl();
         nightMath();
+        new AerialViewsPluginTest().nightPausesCameraDetection();
+        new AerialViewsPluginTest().nightResumesAfterRestart();
+        new AerialViewsPluginTest().nightReportsMissingSwitch();
         System.out.println("AerialViewsPluginTest: all tests passed");
     }
 
@@ -346,6 +372,49 @@ public final class AerialViewsPluginTest {
         check(!host.commands.contains("screenOn"), "no screen on either");
         screensaver();
         check(android.launches == 1, "opens again after the night");
+    }
+
+    static final String MOTION = "switch.lenovo_lenovo_tb_8705f_screensaver_motion_detection";
+    static final String FACE = "switch.lenovo_lenovo_tb_8705f_screensaver_face_detection";
+
+    void nightPausesCameraDetection() throws Exception {
+        host.haStates.put(MOTION, "on");
+        host.haStates.put(FACE, "off");
+        startAt(22 * HOUR, settings("nightEnabled", true, "nightStart", "23:00", "nightEnd", "07:00",
+            "nightScreenOff", true, "nightScreenOn", true, "nightPauseCamera", true,
+            "nightMotionSwitch", "", "nightFaceSwitch", ""));
+        clock.advance(HOUR + 1000);
+        check(host.haCalls.equals(Collections.singletonList("turn_off " + MOTION)),
+            "turns off only the detection that was on: " + host.haCalls);
+        check(host.commands.contains("screenOff"), "still turns the screen off");
+        host.haCalls.clear();
+        clock.advance(8 * HOUR);
+        check(host.haCalls.equals(Collections.singletonList("turn_on " + MOTION)),
+            "turns back on only what it paused: " + host.haCalls);
+        check("off".equals(host.haStates.get(FACE)), "face detection stays as the user left it");
+    }
+
+    void nightResumesAfterRestart() throws Exception {
+        host.haStates.put(MOTION, "off");
+        host.haStates.put(FACE, "on");
+        startAt(2 * HOUR, settings("nightEnabled", true, "nightStart", "23:00", "nightEnd", "07:00",
+            "nightPauseCamera", true, "nightMotionSwitch", "", "nightFaceSwitch", ""));
+        check(host.haCalls.isEmpty(), "starting at night changes nothing by itself");
+        clock.advance(5 * HOUR + 1000);
+        check(host.haCalls.equals(Collections.singletonList("turn_on " + MOTION)),
+            "after a restart, the morning still turns detection back on: " + host.haCalls);
+    }
+
+    void nightReportsMissingSwitch() throws Exception {
+        host.haStates.put("switch.custom_motion", "on");
+        startAt(22 * HOUR, settings("nightEnabled", true, "nightStart", "23:00", "nightEnd", "07:00",
+            "nightScreenOff", false, "nightPauseCamera", true,
+            "nightMotionSwitch", "switch.custom_motion", "nightFaceSwitch", ""));
+        clock.advance(HOUR + 1000);
+        check(host.haCalls.contains("turn_off switch.custom_motion"), "uses the switch the user picked");
+        check(host.statusError && host.status.contains(FACE), "reports the face switch it cannot find: " + host.status);
+        check("tb_8705f".equals(AerialViewsPlugin.slug("TB-8705F")) && "salle_a_manger".equals(AerialViewsPlugin.slug("Salle à manger")),
+            "slugs like Home Assistant");
     }
 
     static void nightMath() {

@@ -6,7 +6,7 @@ A Kiosk Satellite plugin that uses the [Aerial Views](https://github.com/theothe
 - When someone shows up, the kiosk comes back to the front. The return is triggered by motion or a face (Kiosk Satellite's camera), presence, the wake word, a voice conversation, an intercom call or a Home Assistant sensor of your choice.
 - Tapping Aerial Views closes it and brings the kiosk back, once the gesture is set in Aerial Views (see below).
 - Optionally, the screen turns off after a delay spent in Aerial Views.
-- Night hours: between two times you choose, such as 23:00 and 07:00, Aerial Views stays closed, the screen turns off at the start and back on at the end.
+- Night hours: between two times you choose, such as 23:00 and 07:00, Aerial Views stays closed, the screen turns off at the start and back on at the end, and camera motion and face detection can pause for the night.
 
 ## Installation
 
@@ -32,6 +32,7 @@ First install [Aerial Views](https://github.com/theothernt/AerialViews) on the t
 | **Device admin** permission for Kiosk Satellite | Needed to really turn the screen off, for night hours and **Turn the screen off after**. |
 | Android permission **Display over other apps** for Kiosk Satellite | Android 10 and later stop a background app from coming back to the front without it. |
 | *Optional*: **Shizuku** with access granted to Kiosk Satellite | Guaranteed return even when Android blocks the other method. The plugin falls back to it on its own (**Auto** method). |
+| **Expose kiosk entities** (ESPHome) on, Home Assistant connected | Needed to pause camera detection at night: the plugin flips the kiosk's own detection switches through Home Assistant. |
 | Kiosk Mode: allow Aerial Views | If Kiosk Mode locks the screen to KS, Android refuses to open another app. |
 
 ## Required Aerial Views setting
@@ -57,8 +58,10 @@ You don't need to turn on "Start screensaver on launch": the plugin opens the sc
 | Night starts at / Night ends at | The window, on the hour, in the tablet's time zone. It may cross midnight, such as 23:00 to 07:00. |
 | Turn the screen off when night starts | Closes Aerial Views if it is open and turns the screen off. |
 | Turn the screen on when night ends | Wakes the screen. If the screensaver shows, Aerial Views opens again. |
+| Pause camera detection at night | Turns off Kiosk Satellite's motion and face detection when night starts, so movement no longer wakes the screen, and turns back on in the morning only what it turned off. |
+| Motion detection switch / Face detection switch | Leave empty: the plugin finds this kiosk's **Screensaver motion detection** and **Screensaver face detection** switches in Home Assistant from the device name. Pick them here if it cannot. |
 
-At night a wake (motion, a tap...) still turns the screen on and shows the dashboard. When the kiosk goes idle again, its own screensaver shows instead of Aerial Views. To have it turn the screen off again, add a Kiosk Satellite screensaver schedule entry at the night start time with **Turn screen off after** on.
+At night a tap, the wake word or motion when detection is not paused still turns the screen on and shows the dashboard. When the kiosk goes idle again, its own screensaver shows instead of Aerial Views. To have it turn the screen off again, add a Kiosk Satellite screensaver schedule entry at the night start time with **Turn screen off after** on.
 
 Actions available to gestures, the kiosk drawer and Home Assistant buttons: **Open Aerial Views** and **Return to the kiosk**.
 
@@ -66,7 +69,7 @@ The plugin's state shows on its page in Plugin Manager: ready, open, returned an
 
 ## Data and permissions
 
-The plugin sends nothing over the network. It reads Kiosk Satellite's screensaver, screen and detection state (`host.read`), uses its transient controls such as resetting the screensaver timer or turning the screen off (`host.control`), and runs `am start` through Shizuku when you have set it up (`shizuku`). The optional Home Assistant sensor is read through Kiosk Satellite's existing connection.
+The plugin sends nothing over the network. It reads Kiosk Satellite's screensaver, screen and detection state (`host.read`), uses its transient controls such as resetting the screensaver timer or turning the screen off (`host.control`), turns the kiosk's own motion and face detection switches off and on through Home Assistant at night (`ha`), and runs `am start` through Shizuku when you have set it up (`shizuku`). The optional Home Assistant sensor is read through Kiosk Satellite's existing connection.
 
 ## Limitations
 

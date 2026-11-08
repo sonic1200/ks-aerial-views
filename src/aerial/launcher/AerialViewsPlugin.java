@@ -5,8 +5,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import me.jxl.kiosk.plugins.KioskPlugin;
 import me.jxl.kiosk.plugins.PluginHost;
@@ -58,6 +60,12 @@ public final class AerialViewsPlugin implements KioskPlugin {
     private int nightEnd = 7 * 60;
     private boolean nightScreenOff = true;
     private boolean nightScreenOn = true;
+    private boolean nightPauseCamera = true;
+    private String nightMotionSwitch = "";
+    private String nightFaceSwitch = "";
+    /** Switches this plugin turned off for the night, to turn back on in the morning. */
+    private final Set<String> pausedSwitches = new LinkedHashSet<>();
+    private String cameraProblem;
     private TimeZone zone = TimeZone.getDefault();
 
     // Runtime state, scheduler thread only.
@@ -180,6 +188,9 @@ public final class AerialViewsPlugin implements KioskPlugin {
         nightEnd = minutes(string(settings, "nightEnd", "07:00"), 7 * 60);
         nightScreenOff = bool(settings, "nightScreenOff", true);
         nightScreenOn = bool(settings, "nightScreenOn", true);
+        nightPauseCamera = bool(settings, "nightPauseCamera", true);
+        nightMotionSwitch = string(settings, "nightMotionSwitch", "").trim();
+        nightFaceSwitch = string(settings, "nightFaceSwitch", "").trim();
         // A settings change never turns the screen off or on by itself. Only crossing a boundary does.
         wasNight = isNight();
         scheduleNightTimer();
@@ -250,6 +261,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
     }
 
     private void enterNight() {
+        pauseCamera();
         if (away) {
             bringBack("night", nightScreenOff);
             return;
@@ -257,14 +269,16 @@ public final class AerialViewsPlugin implements KioskPlugin {
         if (nightScreenOff) {
             suppressUntilScreenOn = true;
             command("screenOff");
-            status("Night: screen turned off. Aerial Views stays closed until " + clock(nightEnd) + ".", false);
+            nightStatus("Night: screen turned off. Aerial Views stays closed until " + clock(nightEnd) + ".");
         } else {
-            status("Night: Aerial Views stays closed until " + clock(nightEnd) + ".", false);
+            nightStatus("Night: Aerial Views stays closed until " + clock(nightEnd) + ".");
         }
     }
 
     private void leaveNight() {
         suppressUntilScreenOn = false;
+        cameraProblem = null;
+        resumeCamera();
         if (nightScreenOn) command("screenOn");
         status("Morning. " + idleStatus(), false);
         // If the screensaver already shows, Aerial Views takes over now instead of at the next one.
@@ -274,6 +288,132 @@ public final class AerialViewsPlugin implements KioskPlugin {
             });
         } catch (RuntimeException ignored) {
             // Not fatal: the next screensaver start opens Aerial Views.
+        }
+    }
+
+    // ---------------------------------------------------------------- Camera detection at night
+
+    private interface Switches {
+        void found(List<String> entityIds);
+    }
+
+    /** HA's slugify, close enough for device names: lowercase, runs of other characters become one underscore. */
+    static String slug(String name) {
+        String text = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "").toLowerCase(java.util.Locale.ROOT);
+        return text.replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
+    }
+
+    /** The chosen switches, with the kiosk's own ESPHome switches standing in for the empty ones. */
+    private void findSwitches(Switches callback) {
+        if (!nightMotionSwitch.isEmpty() && !nightFaceSwitch.isEmpty()) {
+            callback.found(java.util.Arrays.asList(nightMotionSwitch, nightFaceSwitch));
+            return;
+        }
+        try {
+            host.executeCommand("getDeviceInfo", Collections.emptyMap(), (ok, data, error) -> post(() -> {
+                List<String> ids = new ArrayList<>();
+                String device = ok && data instanceof Map && ((Map<?, ?>) data).get("name") instanceof String
+                    ? slug((String) ((Map<?, ?>) data).get("name")) : "";
+                if (!nightMotionSwitch.isEmpty()) ids.add(nightMotionSwitch);
+                else if (!device.isEmpty()) ids.add("switch." + device + "_screensaver_motion_detection");
+                if (!nightFaceSwitch.isEmpty()) ids.add(nightFaceSwitch);
+                else if (!device.isEmpty()) ids.add("switch." + device + "_screensaver_face_detection");
+                callback.found(ids);
+            }));
+        } catch (RuntimeException failed) {
+            safeLog("getDeviceInfo: " + failed);
+        }
+    }
+
+    /** A night message, with any camera pause problem kept visible instead of overwritten. */
+    private void nightStatus(String message) {
+        if (cameraProblem == null) status(message, false);
+        else status(message + " " + cameraProblem, true);
+    }
+
+    private void cameraProblem(String problem) {
+        cameraProblem = problem;
+        status(problem, true);
+    }
+
+    private void pauseCamera() {
+        cameraProblem = null;
+        if (!nightPauseCamera) return;
+        findSwitches(ids -> {
+            for (String id : ids) {
+                readSwitch(id, state -> {
+                    if (state == null) {
+                        cameraProblem("Cannot find " + id + " in Home Assistant. Pick the switch under Night, and check that Expose kiosk entities is on.");
+                    } else if ("on".equals(state)) {
+                        setSwitch(id, false, ok -> {
+                            if (ok) pausedSwitches.add(id);
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    private void resumeCamera() {
+        if (!nightPauseCamera) return;
+        if (!pausedSwitches.isEmpty()) {
+            List<String> ids = new ArrayList<>(pausedSwitches);
+            pausedSwitches.clear();
+            for (String id : ids) setSwitch(id, true, ok -> {});
+            return;
+        }
+        // The plugin restarted during the night and forgot what it paused. Night pausing is on, so detection
+        // belongs on during the day: turn the switches it would have paused back on.
+        findSwitches(ids -> {
+            for (String id : ids) {
+                readSwitch(id, state -> {
+                    if ("off".equals(state)) setSwitch(id, true, ok -> {});
+                });
+            }
+        });
+    }
+
+    private interface State {
+        void read(String state);
+    }
+
+    /** Reads a switch's state, or null when Home Assistant does not have it. */
+    private void readSwitch(String id, State callback) {
+        try {
+            host.executeCommand("getHaEntityState", Collections.singletonMap("entityId", id), (ok, data, error) -> post(() -> {
+                String state = null;
+                if (ok && data instanceof Map) {
+                    Map<?, ?> snapshot = (Map<?, ?>) data;
+                    if ("available".equals(snapshot.get("status")) && snapshot.get("state") != null) {
+                        state = String.valueOf(snapshot.get("state"));
+                    }
+                } else if (!ok) {
+                    safeLog("getHaEntityState " + id + ": " + error);
+                }
+                callback.read(state);
+            }));
+        } catch (RuntimeException failed) {
+            safeLog("getHaEntityState " + id + ": " + failed);
+            callback.read(null);
+        }
+    }
+
+    private void setSwitch(String id, boolean on, Done done) {
+        Map<String, Object> message = new HashMap<>();
+        message.put("type", "call_service");
+        message.put("domain", "switch");
+        message.put("service", on ? "turn_on" : "turn_off");
+        message.put("target", Collections.singletonMap("entity_id", id));
+        try {
+            host.haCall(message, (ok, data, error) -> post(() -> {
+                if (!ok) cameraProblem("Could not turn " + (on ? "on " : "off ") + id + ": " + error);
+                else safeLog((on ? "Resumed " : "Paused ") + id);
+                done.run(ok);
+            }));
+        } catch (RuntimeException | LinkageError failed) {
+            status("Home Assistant is unavailable to the plugin: " + failed.getMessage(), true);
+            done.run(false);
         }
     }
 
@@ -361,7 +501,7 @@ public final class AerialViewsPlugin implements KioskPlugin {
         if (!enabled || platform == null) return;
         if (suppressUntilScreenOn) return;
         if (isNight()) {
-            status("Night: Aerial Views stays closed until " + clock(nightEnd) + ".", false);
+            nightStatus("Night: Aerial Views stays closed until " + clock(nightEnd) + ".");
             return;
         }
         if (away && !platform.kioskInForeground()) return;
@@ -532,9 +672,13 @@ public final class AerialViewsPlugin implements KioskPlugin {
         if (screenOff) {
             suppressUntilScreenOn = true;
             command("screenOff");
-            status("night".equals(reason)
-                ? "Night: screen turned off. Aerial Views stays closed until " + clock(nightEnd) + "."
-                : "Screen turned off after the time limit. Aerial Views opens again at the next screensaver.", false);
+            if ("night".equals(reason)) {
+                nightStatus("Night: screen turned off. Aerial Views stays closed until " + clock(nightEnd) + ".");
+            } else {
+                status("Screen turned off after the time limit. Aerial Views opens again at the next screensaver.", false);
+            }
+        } else if ("night".equals(reason)) {
+            nightStatus("Night: back to the kiosk. Aerial Views stays closed until " + clock(nightEnd) + ".");
         } else {
             status("Back to the kiosk (" + reason + ").", false);
         }
